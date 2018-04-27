@@ -17,13 +17,6 @@
  */
 package de.shadowhunt.maven.plugins.packageinfo;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.List;
-import java.util.Locale;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -34,6 +27,11 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Generate package-info.java for each package that doesn't already contain one.<br/>
@@ -112,6 +110,12 @@ public class PackageInfoPlugin extends AbstractMojo {
     private File outputDirectory;
 
     /**
+     * Specify path to the file with headerFile to be put in each package-info.java files.
+     */
+    @Parameter(readonly = true)
+    private File headerFile;
+
+    /**
      * Package configuration
      */
     @Parameter
@@ -174,10 +178,12 @@ public class PackageInfoPlugin extends AbstractMojo {
         final File packageInfo = new File(absoluteOutputDirectory, filename);
         createNecessaryDirectories(packageInfo);
 
+        final String headerContent = getHeaderContents();
         final String packageName = path2PackageName(relativePath);
         for (final PackageConfiguration configuration : packages) {
             if (configuration.matches(packageName)) {
                 final PrintWriter pw = new PrintWriter(packageInfo);
+                pw.append(headerContent);
                 configuration.printAnnotions(pw);
                 pw.print("package ");
                 pw.print(packageName);
@@ -189,12 +195,20 @@ public class PackageInfoPlugin extends AbstractMojo {
         }
     }
 
+    private String getHeaderContents() throws IOException {
+        return headerFile != null && headerFile.isFile() ? new String(Files.readAllBytes(headerFile.toPath())) : "";
+    }
+
     public List<String> getCompileSourceRoots() {
         return compileSourceRoots;
     }
 
     public File getOutputDirectory() {
         return outputDirectory;
+    }
+
+    public File getHeaderFile() {
+        return headerFile;
     }
 
     public List<PackageConfiguration> getPackages() {
@@ -237,6 +251,10 @@ public class PackageInfoPlugin extends AbstractMojo {
 
     public void setOutputDirectory(final File outputDirectory) {
         this.outputDirectory = outputDirectory;
+    }
+
+    public void setHeaderFile(File headerFile) {
+        this.headerFile = headerFile;
     }
 
     public void setPackages(final List<PackageConfiguration> packages) {

@@ -17,18 +17,21 @@
  */
 package de.shadowhunt.maven.plugins.packageinfo;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.maven.project.MavenProject;
+import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class PackageInfoPluginTest {
 
@@ -120,6 +123,36 @@ public class PackageInfoPluginTest {
             plugin.generateDefaultPackageInfo("net/example/foo");
             Assert.assertTrue("package-info.java for default package", targetPackageInfo.isFile());
         }
+    }
+
+    @Test
+    public void addFileHeaderTest() throws Exception {
+        final PackageInfoPlugin plugin = new PackageInfoPlugin();
+
+        final File source = temporaryFolder.newFolder("source");
+        final File output = temporaryFolder.newFolder("output");
+
+        final File header = temporaryFolder.newFile("header.txt");
+        try (Writer headerFile = Files.newBufferedWriter(header.toPath())){
+            headerFile
+                .append("/**\n")
+                .append(" * header\n")
+                .append(" */\n");
+        }
+
+        plugin.setOutputDirectory(output);
+        plugin.setCompileSourceRoots(Arrays.asList(source.getPath()));
+        plugin.setHeaderFile(header);
+        plugin.setPackages(Arrays.asList(new PackageConfiguration()));
+
+        final File targetPackageInfo = new File(output, "net/example/foo/bar/package-info.java");
+
+        Assert.assertFalse("no package-info.java for net/example/foo/bar package", targetPackageInfo.isFile());
+        plugin.generateDefaultPackageInfo("net/example/foo/bar");
+        Assert.assertTrue("package-info.java for net/example/foo/bar package", targetPackageInfo.isFile());
+
+        final List<String> allLines = Files.readAllLines(targetPackageInfo.toPath());
+        Assert.assertThat(allLines, CoreMatchers.hasItems("/**", " * header", " */", "package net.example.foo.bar;"));
     }
 
     @Test
